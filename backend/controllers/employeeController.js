@@ -1,5 +1,7 @@
 // controllers/employeeController.js
 const Employee = require('../models/Employee');
+const User = require('../models/User'); // Import the User model
+const bcrypt = require('bcrypt'); // Import bcrypt for password hashing
 
 // @desc Get all employees
 // @route GET /api/employees
@@ -17,20 +19,36 @@ const getEmployees = async (req, res) => {
 // @route POST /api/employees
 // @access Private (Owner only)
 const addEmployee = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, truck, role } = req.body; // Include truck and role
 
+    // Check if the employee already exists
     const employeeExists = await Employee.findOne({ email });
     if (employeeExists) {
         return res.status(400).json({ message: 'Employee already exists' });
     }
 
-    const employee = new Employee({
-        name,
-        email,
-        password,
-    });
-
     try {
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create a new user in the User collection
+        const user = new User({
+            email,
+            password: hashedPassword,
+            role: 'employee', // Set the role for the user
+        });
+
+        await user.save();
+
+        // Create a new employee record
+        const employee = new Employee({
+            name,
+            email,
+            password: hashedPassword, // Store the hashed password
+            truck,
+            role,
+        });
+
         const createdEmployee = await employee.save();
         res.status(201).json(createdEmployee);
     } catch (error) {
@@ -42,7 +60,7 @@ const addEmployee = async (req, res) => {
 // @route PUT /api/employees/:id
 // @access Private (Owner only)
 const updateEmployee = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, truck, role } = req.body;
 
     try {
         const employee = await Employee.findById(req.params.id);
@@ -51,10 +69,14 @@ const updateEmployee = async (req, res) => {
             return res.status(404).json({ message: 'Employee not found' });
         }
 
+        // Update fields if provided
         employee.name = name || employee.name;
         employee.email = email || employee.email;
+        employee.truck = truck || employee.truck;
+        employee.role = role || employee.role;
+
         if (password) {
-            employee.password = password; // Hash the password in the model
+            employee.password = await bcrypt.hash(password, 10); // Hash the new password
         }
 
         const updatedEmployee = await employee.save();
