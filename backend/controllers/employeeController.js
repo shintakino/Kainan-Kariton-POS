@@ -28,28 +28,29 @@ const addEmployee = async (req, res) => {
     }
 
     try {
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create a new user in the User collection
-        const user = new User({
-            email,
-            password: hashedPassword,
-            role: 'employee', // Set the role for the user
-        });
-
-        await user.save();
-
         // Create a new employee record
         const employee = new Employee({
             name,
             email,
-            password: hashedPassword, // Store the hashed password
             truck,
             role,
         });
 
         const createdEmployee = await employee.save();
+
+        // Only create a User record if the role is 'employee'
+        if (role === 'employee') {
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            const user = new User({
+                email,
+                password: hashedPassword,
+                role: 'employee',
+            });
+
+            await user.save();
+        }
+
         res.status(201).json(createdEmployee);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -80,6 +81,35 @@ const updateEmployee = async (req, res) => {
         }
 
         const updatedEmployee = await employee.save();
+
+        // Update the User reference if the role is 'employee'
+        if (role === 'employee') {
+            const user = await User.findOne({ email });
+
+            if (user) {
+                user.email = email || user.email;
+                if (password) {
+                    user.password = await bcrypt.hash(password, 10); // Hash the new password
+                }
+                user.role = role;
+                await user.save();
+            } else {
+                // Create a new User record if it doesn’t exist and the role is 'employee'
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                const newUser = new User({
+                    email,
+                    password: hashedPassword,
+                    role: 'employee',
+                });
+
+                await newUser.save();
+            }
+        } else {
+            // If the role is not 'employee', remove the User record if it exists
+            await User.findOneAndDelete({ email });
+        }
+
         res.json(updatedEmployee);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -98,6 +128,10 @@ const deleteEmployee = async (req, res) => {
         }
 
         await employee.remove();
+
+        // Remove the User record if the employee is a user
+        await User.findOneAndDelete({ email: employee.email });
+
         res.json({ message: 'Employee removed' });
     } catch (error) {
         res.status(500).json({ message: error.message });

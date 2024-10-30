@@ -1,23 +1,14 @@
 // routes/employeeRoutes.js
 const express = require('express');
-const {
-    createEmployee,
-    getEmployees,
-    updateEmployee,
-    deleteEmployee,
-} = require('../controllers/employeeController');
 const router = express.Router();
+const protect = require('../middleware/authMiddleware');
+const roleMiddleware = require('../middleware/roleMiddleware');
+const { getEmployees, addEmployee, updateEmployee, deleteEmployee } = require('../controllers/employeeController');
 
-// Create a new employee
-router.post('/', createEmployee);
-
-// Get all employees
-router.get('/', getEmployees);
-
-// Update an employee
-router.put('/:id', updateEmployee);
-
-// Delete an employee
-router.delete('/:id', deleteEmployee);
+// Protected routes with owner-only access
+router.get('/', protect, roleMiddleware('owner'), getEmployees);
+router.post('/', protect, roleMiddleware('owner'), addEmployee);
+router.put('/:id', protect, roleMiddleware('owner'), updateEmployee);
+router.delete('/:id', protect, roleMiddleware('owner'), deleteEmployee);
 
 module.exports = router;

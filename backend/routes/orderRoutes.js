@@ -1,23 +1,13 @@
 // routes/orderRoutes.js
 const express = require('express');
-const {
-    createOrder,
-    getOrders,
-    updateOrder,
-    deleteOrder,
-} = require('../controllers/orderController');
 const router = express.Router();
+const protect = require('../middleware/authMiddleware');
+const { getOrders, createOrder, updateOrder, deleteOrder } = require('../controllers/orderController');
 
-// Create a new order
-router.post('/', createOrder);
-
-// Get all orders
-router.get('/', getOrders);
-
-// Update an order
-router.put('/:id', updateOrder);
-
-// Delete an order
-router.delete('/:id', deleteOrder);
+// Protected route for employees to manage orders
+router.get('/', protect, getOrders);
+router.post('/', protect, createOrder);
+router.put('/:id', protect, updateOrder);
+router.delete('/:id', protect, deleteOrder);
 
 module.exports = router;
